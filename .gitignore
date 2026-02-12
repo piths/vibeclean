@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.cache/
+*.log
+.DS_Store
+.vscode/
+.env
+.env.*
+.vibeclean-rules.md
+.cursorrules
+CLAUDE.md
