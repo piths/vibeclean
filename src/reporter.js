@@ -141,6 +141,16 @@ export function renderReport(report, options = {}) {
   lines.push(
     `  Scanning project... ${chalk.green("✓")} Found ${chalk.bold(report.fileCount)} source files in ${chalk.bold(`${report.durationSec}s`)}`
   );
+  lines.push(`  Profile: ${chalk.bold(report.profile || "app")}`);
+
+  if (report.baselineComparison && !report.baselineComparison.missing) {
+    const deltas = report.baselineComparison.deltas || {};
+    const scoreDelta = Number.isFinite(deltas.score) ? deltas.score : 0;
+    const issueDelta = Number.isFinite(deltas.totalIssues) ? deltas.totalIssues : 0;
+    lines.push(
+      `  Baseline: score ${report.baselineComparison.baselineScore} -> ${report.baselineComparison.currentScore} (${scoreDelta >= 0 ? "+" : ""}${scoreDelta}), issues ${report.baselineComparison.baselineTotalIssues} -> ${report.baselineComparison.currentTotalIssues} (${issueDelta >= 0 ? "+" : ""}${issueDelta})`
+    );
+  }
 
   if (report.scanWarnings?.length) {
     for (const warning of report.scanWarnings.slice(0, 6)) {
@@ -188,4 +198,3 @@ export function renderReport(report, options = {}) {
 
   return lines.join("\n");
 }
-

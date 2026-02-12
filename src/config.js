@@ -6,11 +6,22 @@ const DEFAULT_CONFIG = {
   maxFileSizeKb: 100,
   ignore: [],
   severity: "low",
+  profile: "app",
   changedOnly: false,
   changedBase: "HEAD",
   failOn: null,
   maxIssues: null,
   minScore: null,
+  baseline: false,
+  baselineFile: ".vibeclean-baseline.json",
+  writeBaseline: false,
+  failOnRegression: true,
+  reportFormat: "text",
+  reportFile: null,
+  leftovers: {
+    allowConsolePaths: [],
+    ignoreTodoPaths: []
+  },
   rules: {
     naming: true,
     patterns: true,
@@ -26,6 +37,24 @@ const DEFAULT_CONFIG = {
   }
 };
 const VALID_SEVERITIES = new Set(["low", "medium", "high"]);
+const VALID_REPORT_FORMATS = new Set(["text", "json", "markdown"]);
+
+const PROFILE_PRESETS = {
+  app: {
+    ignore: []
+  },
+  library: {
+    ignore: ["examples/**", "example/**", "benchmarks/**", "benchmark/**", "playground/**"]
+  },
+  cli: {
+    ignore: ["test/**", "**/*.test.js", "**/*.spec.js"],
+    leftovers: {
+      allowConsolePaths: ["bin/", "scripts/", "test/"],
+      ignoreTodoPaths: ["test/"]
+    }
+  }
+};
+const VALID_PROFILES = new Set(Object.keys(PROFILE_PRESETS));
 
 function deepMerge(base, override) {
   const merged = { ...base };
@@ -52,6 +81,20 @@ async function readJson(filePath) {
   return JSON.parse(raw);
 }
 
+function uniqueArray(input) {
+  return [...new Set((Array.isArray(input) ? input : []).filter(Boolean))];
+}
+
+function applyProfile(baseConfig, profileName) {
+  const normalized = typeof profileName === "string" ? profileName.toLowerCase() : "";
+  const selectedProfile = VALID_PROFILES.has(normalized) ? normalized : DEFAULT_CONFIG.profile;
+  const profilePreset = PROFILE_PRESETS[selectedProfile] || {};
+  const profiled = deepMerge(baseConfig, profilePreset);
+  profiled.profile = selectedProfile;
+  profiled.ignore = uniqueArray([...(baseConfig.ignore || []), ...(profilePreset.ignore || [])]);
+  return profiled;
+}
+
 export async function loadConfig(rootDir) {
   const candidates = [".vibecleanrc", ".vibecleanrc.json"];
   let fileConfig = {};
@@ -75,11 +118,18 @@ export async function loadConfig(rootDir) {
 
 export function mergeConfig(base, overrides) {
   const safeOverrides = { ...overrides };
+  const extraIgnore = [];
   if (safeOverrides.ignore && typeof safeOverrides.ignore === "string") {
-    safeOverrides.ignore = safeOverrides.ignore
+    extraIgnore.push(
+      ...safeOverrides.ignore
       .split(",")
       .map((item) => item.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+    );
+    delete safeOverrides.ignore;
+  } else if (Array.isArray(safeOverrides.ignore)) {
+    extraIgnore.push(...safeOverrides.ignore.filter(Boolean));
+    delete safeOverrides.ignore;
   }
 
   if (typeof safeOverrides.maxFiles === "string") {
@@ -96,6 +146,13 @@ export function mergeConfig(base, overrides) {
 
   if (typeof safeOverrides.minSeverity === "string") {
     safeOverrides.severity = safeOverrides.minSeverity.toLowerCase();
+  }
+
+  if (typeof safeOverrides.profile === "string") {
+    safeOverrides.profile = safeOverrides.profile.toLowerCase();
+    if (!VALID_PROFILES.has(safeOverrides.profile)) {
+      delete safeOverrides.profile;
+    }
   }
 
   if (typeof safeOverrides.severity === "string") {
@@ -128,8 +185,23 @@ export function mergeConfig(base, overrides) {
     safeOverrides.failOn = null;
   }
 
-  return deepMerge(base, safeOverrides);
+  if (typeof safeOverrides.reportFormat === "string") {
+    safeOverrides.reportFormat = safeOverrides.reportFormat.toLowerCase();
+    if (!VALID_REPORT_FORMATS.has(safeOverrides.reportFormat)) {
+      safeOverrides.reportFormat = base.reportFormat || DEFAULT_CONFIG.reportFormat;
+    }
+  }
+
+  if (typeof safeOverrides.baselineFile === "string") {
+    safeOverrides.baselineFile = safeOverrides.baselineFile.trim() || DEFAULT_CONFIG.baselineFile;
+  }
+
+  const selectedProfile = safeOverrides.profile || base.profile || DEFAULT_CONFIG.profile;
+  const profiledBase = applyProfile(base, selectedProfile);
+  const merged = deepMerge(profiledBase, safeOverrides);
+  merged.ignore = uniqueArray([...(profiledBase.ignore || []), ...extraIgnore]);
+
+  return merged;
 }
 
-export { DEFAULT_CONFIG };
-
+export { DEFAULT_CONFIG, PROFILE_PRESETS };

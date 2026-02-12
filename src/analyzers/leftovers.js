@@ -49,8 +49,12 @@ function lineNumberAtIndex(content, index) {
   return content.slice(0, index).split("\n").length;
 }
 
+function lineAtNumber(content, lineNumber) {
+  return content.split("\n")[lineNumber - 1] || "";
+}
+
 function lineSnippet(content, lineNumber) {
-  const line = content.split("\n")[lineNumber - 1] || "";
+  const line = lineAtNumber(content, lineNumber);
   return line.trim().slice(0, 140);
 }
 
@@ -58,10 +62,16 @@ function collectRegexLocations(content, regex, relativePath, maxLocations) {
   const flags = regex.flags.includes("g") ? regex.flags : `${regex.flags}g`;
   const probe = new RegExp(regex.source, flags);
   const locations = [];
+  const seen = new Set();
 
   for (const match of content.matchAll(probe)) {
     const index = typeof match.index === "number" ? match.index : 0;
     const line = lineNumberAtIndex(content, index);
+    const locationKey = `${relativePath}:${line}`;
+    if (seen.has(locationKey)) {
+      continue;
+    }
+    seen.add(locationKey);
     locations.push({
       file: relativePath,
       line,
@@ -73,6 +83,75 @@ function collectRegexLocations(content, regex, relativePath, maxLocations) {
   }
 
   return locations;
+}
+
+function normalizePath(value = "") {
+  return value.replace(/\\/g, "/");
+}
+
+function matchesPathPrefix(relativePath, prefixes = []) {
+  const normalizedPath = normalizePath(relativePath);
+  for (const prefix of prefixes) {
+    if (!prefix) {
+      continue;
+    }
+    const normalizedPrefix = normalizePath(prefix);
+    if (normalizedPath.startsWith(normalizedPrefix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isDetectorRegexDefinitionLine(content, index) {
+  const lineNumber = lineNumberAtIndex(content, index);
+  const line = lineAtNumber(content, lineNumber).trim();
+  const prevLine = lineAtNumber(content, lineNumber - 1).trim();
+
+  if (/^const\s+[A-Z_]+_RE\s*=/.test(line) && /\/.+\/[gimsuy]*;?$/.test(line)) {
+    return true;
+  }
+
+  if (/^\/.+\/[gimsuy]*;?$/.test(line) && /^const\s+[A-Z_]+_RE\s*=\s*$/.test(prevLine)) {
+    return true;
+  }
+
+  return false;
+}
+
+function collectRegexMatches(content, regex, relativePath, maxLocations, skipMatch) {
+  const flags = regex.flags.includes("g") ? regex.flags : `${regex.flags}g`;
+  const probe = new RegExp(regex.source, flags);
+  let count = 0;
+  const locations = [];
+  const seen = new Set();
+
+  for (const match of content.matchAll(probe)) {
+    const index = typeof match.index === "number" ? match.index : 0;
+    if (typeof skipMatch === "function" && skipMatch(index, match)) {
+      continue;
+    }
+
+    count += 1;
+
+    if (locations.length >= maxLocations) {
+      continue;
+    }
+
+    const line = lineNumberAtIndex(content, index);
+    const locationKey = `${relativePath}:${line}`;
+    if (seen.has(locationKey)) {
+      continue;
+    }
+    seen.add(locationKey);
+    locations.push({
+      file: relativePath,
+      line,
+      snippet: lineSnippet(content, line)
+    });
+  }
+
+  return { count, locations };
 }
 
 function extractImportedNames(content) {
@@ -122,7 +201,7 @@ function findUnusedImports(content) {
   return unused;
 }
 
-export function analyzeLeftovers(files) {
+export function analyzeLeftovers(files, context = {}) {
   let todoCount = 0;
   let aiTodoCount = 0;
   let consoleCount = 0;
@@ -141,29 +220,40 @@ export function analyzeLeftovers(files) {
   const todoLocations = [];
   const placeholderLocations = [];
   const commentedCodeLocations = [];
+  const profileOptions = context.config?.leftovers || {};
+  const allowConsolePaths = Array.isArray(profileOptions.allowConsolePaths)
+    ? profileOptions.allowConsolePaths
+    : [];
+  const ignoreTodoPaths = Array.isArray(profileOptions.ignoreTodoPaths)
+    ? profileOptions.ignoreTodoPaths
+    : [];
 
   for (const file of files) {
     const content = file.content;
+    const skipTodoSignals = matchesPathPrefix(file.relativePath, ignoreTodoPaths);
+    const allowConsole = matchesPathPrefix(file.relativePath, allowConsolePaths);
 
-    const todos = content.match(TODO_RE) || [];
-    if (todos.length > 0) {
-      todoCount += todos.length;
-      filesWithTodos.add(file.relativePath);
-      if (todoLocations.length < MAX_LOCATIONS_PER_FINDING) {
-        todoLocations.push(
-          ...collectRegexLocations(
-            content,
-            TODO_RE,
-            file.relativePath,
-            MAX_LOCATIONS_PER_FINDING - todoLocations.length
-          )
-        );
+    if (!skipTodoSignals) {
+      const todos = content.match(TODO_RE) || [];
+      if (todos.length > 0) {
+        todoCount += todos.length;
+        filesWithTodos.add(file.relativePath);
+        if (todoLocations.length < MAX_LOCATIONS_PER_FINDING) {
+          todoLocations.push(
+            ...collectRegexLocations(
+              content,
+              TODO_RE,
+              file.relativePath,
+              MAX_LOCATIONS_PER_FINDING - todoLocations.length
+            )
+          );
+        }
       }
+
+      aiTodoCount += (content.match(AI_TODO_RE) || []).length;
     }
 
-    aiTodoCount += (content.match(AI_TODO_RE) || []).length;
-
-    if (!/(logger|logging|middleware)/i.test(file.relativePath)) {
+    if (!allowConsole && !/(logger|logging|middleware)/i.test(file.relativePath)) {
       const consoles = content.match(CONSOLE_RE) || [];
       if (consoles.length > 0) {
         consoleCount += consoles.length;
@@ -181,35 +271,33 @@ export function analyzeLeftovers(files) {
       }
     }
 
-    const localhosts = content.match(LOCALHOST_RE) || [];
-    if (localhosts.length > 0) {
-      localhostCount += localhosts.length;
+    const localhostSignals = collectRegexMatches(
+      content,
+      LOCALHOST_RE,
+      file.relativePath,
+      MAX_LOCATIONS_PER_FINDING - placeholderLocations.length,
+      (index) => isDetectorRegexDefinitionLine(content, index)
+    );
+    if (localhostSignals.count > 0) {
+      localhostCount += localhostSignals.count;
       filesWithPlaceholders.add(file.relativePath);
       if (placeholderLocations.length < MAX_LOCATIONS_PER_FINDING) {
-        placeholderLocations.push(
-          ...collectRegexLocations(
-            content,
-            LOCALHOST_RE,
-            file.relativePath,
-            MAX_LOCATIONS_PER_FINDING - placeholderLocations.length
-          )
-        );
+        placeholderLocations.push(...localhostSignals.locations);
       }
     }
 
-    const placeholders = content.match(PLACEHOLDER_RE) || [];
-    if (placeholders.length > 0) {
-      placeholderCount += placeholders.length;
+    const placeholderSignals = collectRegexMatches(
+      content,
+      PLACEHOLDER_RE,
+      file.relativePath,
+      MAX_LOCATIONS_PER_FINDING - placeholderLocations.length,
+      (index) => isDetectorRegexDefinitionLine(content, index)
+    );
+    if (placeholderSignals.count > 0) {
+      placeholderCount += placeholderSignals.count;
       filesWithPlaceholders.add(file.relativePath);
       if (placeholderLocations.length < MAX_LOCATIONS_PER_FINDING) {
-        placeholderLocations.push(
-          ...collectRegexLocations(
-            content,
-            PLACEHOLDER_RE,
-            file.relativePath,
-            MAX_LOCATIONS_PER_FINDING - placeholderLocations.length
-          )
-        );
+        placeholderLocations.push(...placeholderSignals.locations);
       }
     }
 
@@ -332,4 +420,3 @@ export function analyzeLeftovers(files) {
     findings
   };
 }
-

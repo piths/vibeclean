@@ -11,6 +11,7 @@ import { analyzeErrorHandling } from "./analyzers/errorhandling.js";
 import { generateRulesFiles } from "./rules-generator.js";
 import { parseAstWithMeta } from "./analyzers/utils.js";
 import { applySafeFixes } from "./fixers/safe-fixes.js";
+import { compareAgainstBaseline, readBaselineSnapshot, resolveBaselinePath } from "./baseline.js";
 
 const SEVERITY_RANK = {
   low: 1,
@@ -178,6 +179,7 @@ export async function runAudit(targetDir, cliOptions = {}) {
       : "No JS/TS source files found. Nothing to clean yet.";
     return {
       rootDir,
+      config,
       report: {
         version: cliOptions.version || "1.0.0",
         fileCount: 0,
@@ -189,6 +191,7 @@ export async function runAudit(targetDir, cliOptions = {}) {
         scanWarnings: scanResult.warnings,
         rulesGenerated: false,
         fixesApplied,
+        profile: config.profile || "app",
         gateFailures: [],
         passedGates: true
       },
@@ -245,10 +248,37 @@ export async function runAudit(targetDir, cliOptions = {}) {
     overallMessage: overallMessage(overallScore),
     scanWarnings: scanResult.warnings,
     rulesGenerated: false,
-    fixesApplied
+    fixesApplied,
+    profile: config.profile || "app"
   };
 
+  if (config.baseline) {
+    try {
+      const baselineData = await readBaselineSnapshot(rootDir, config.baselineFile);
+      report.baselineComparison = {
+        path: baselineData.path,
+        ...compareAgainstBaseline(report, baselineData.snapshot)
+      };
+    } catch {
+      const baselinePath = resolveBaselinePath(rootDir, config.baselineFile);
+      report.scanWarnings.push(`Baseline file not found or invalid: ${baselinePath}`);
+      report.baselineComparison = {
+        path: baselinePath,
+        regressions: [],
+        missing: true
+      };
+    }
+  }
+
   report.gateFailures = collectGateFailures(report, config);
+  if (
+    config.failOnRegression !== false &&
+    report.baselineComparison &&
+    Array.isArray(report.baselineComparison.regressions) &&
+    report.baselineComparison.regressions.length > 0
+  ) {
+    report.gateFailures.push(...report.baselineComparison.regressions);
+  }
   report.passedGates = report.gateFailures.length === 0;
 
   let generatedRules = [];
@@ -270,4 +300,3 @@ export async function runAudit(targetDir, cliOptions = {}) {
     generatedRules
   };
 }
-

@@ -99,8 +99,14 @@ Arguments:
 Options:
   -f, --fix               Apply safe autofixes before scoring (TODO/commented code/noisy console)
   --json                  Output results as JSON
+  --report <format>       Output format: text, json, markdown (default: text)
+  --report-file <path>    Write report output to file
+  --profile <name>        Preset profile: app, library, cli (default: app)
   --changed               Scan only changed files in the current git working tree
   --base <ref>            Git base ref to diff against when using --changed (default: HEAD)
+  --baseline              Compare against baseline file and detect regressions
+  --baseline-file <path>  Baseline file path for compare/write (default: .vibeclean-baseline.json)
+  --write-baseline        Write current report to baseline file
   --rules                 Generate .vibeclean-rules.md file
   --cursor                Also generate .cursorrules file
   --claude                Also generate CLAUDE.md file
@@ -127,6 +133,47 @@ vibeclean --min-score 75 --max-issues 20
 
 When a gate fails, vibeclean exits with status code `1`.
 
+## Profiles
+
+```bash
+# Default
+vibeclean --profile app
+
+# Libraries: ignores common example/benchmark folders
+vibeclean --profile library
+
+# CLI projects: reduces test/bin leftovers noise
+vibeclean --profile cli
+```
+
+Profiles apply sensible defaults, but you can still override with `.vibecleanrc` and `--ignore`.
+
+## Baseline Compare
+
+```bash
+# Create baseline snapshot
+vibeclean --write-baseline --baseline-file .vibeclean-baseline.json
+
+# Compare current branch against baseline (fails on regressions by default)
+vibeclean --baseline --baseline-file .vibeclean-baseline.json
+```
+
+Baseline compare tracks:
+- overall score drift
+- issue count drift
+- high-severity finding drift
+- category-level score regressions
+
+## Markdown PR Report
+
+```bash
+# Print markdown to stdout
+vibeclean --report markdown
+
+# Write markdown report to file for PR comments/artifacts
+vibeclean --report markdown --report-file vibeclean-report.md
+```
+
 ## Autofix Mode
 
 ```bash
@@ -149,6 +196,11 @@ Create `.vibecleanrc` or `.vibecleanrc.json` in project root:
   "maxFiles": 500,
   "changedOnly": false,
   "changedBase": "main",
+  "profile": "app",
+  "baseline": false,
+  "baselineFile": ".vibeclean-baseline.json",
+  "failOnRegression": true,
+  "reportFormat": "text",
   "ignore": ["scripts/", "*.test.js", "*.spec.js"],
   "severity": "medium",
   "failOn": "high",

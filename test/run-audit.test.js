@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { writeBaselineSnapshot } from "../src/baseline.js";
 import { runAudit } from "../src/index.js";
+import { renderMarkdownReport } from "../src/markdown-report.js";
 
 async function withTempProject(fn) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "vibeclean-test-"));
@@ -125,3 +127,61 @@ test("runAudit reports quality gate failures", async () => {
   });
 });
 
+test("profile cli suppresses console leftovers in bin files", async () => {
+  await withTempProject(async (root) => {
+    await fs.mkdir(path.join(root, "bin"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "bin", "tool.js"),
+      "export function run() { console.log('ok'); }\n",
+      "utf8"
+    );
+
+    const appResult = await runAudit(root, { version: "1.0.0", profile: "app" });
+    const appLeftovers = appResult.report.categories.find((item) => item.id === "leftovers");
+    assert.ok((appLeftovers?.metrics?.consoleCount || 0) >= 1);
+
+    const cliResult = await runAudit(root, { version: "1.0.0", profile: "cli" });
+    const cliLeftovers = cliResult.report.categories.find((item) => item.id === "leftovers");
+    assert.equal(cliLeftovers?.metrics?.consoleCount || 0, 0);
+  });
+});
+
+test("baseline compare reports regressions", async () => {
+  await withTempProject(async (root) => {
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    const filePath = path.join(root, "src", "feature.js");
+    await fs.writeFile(filePath, "export const value = 1;\n", "utf8");
+
+    const cleanRun = await runAudit(root, { version: "1.0.0" });
+    await writeBaselineSnapshot(root, ".vibeclean-baseline.json", cleanRun.report);
+
+    await fs.writeFile(filePath, "export const value = 1; // TODO: revisit\n", "utf8");
+    const compared = await runAudit(root, {
+      version: "1.0.0",
+      baseline: true,
+      baselineFile: ".vibeclean-baseline.json"
+    });
+
+    assert.ok(compared.report.baselineComparison);
+    assert.equal(compared.report.passedGates, false);
+    assert.ok(compared.report.gateFailures.some((line) => /Baseline regression/.test(line)));
+  });
+});
+
+test("markdown report renderer outputs PR-friendly content", async () => {
+  await withTempProject(async (root) => {
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "src", "index.js"),
+      "export async function main() { return fetch('http://localhost:3000').then(r => r.json()); }\n",
+      "utf8"
+    );
+
+    const result = await runAudit(root, { version: "1.0.0" });
+    const markdown = renderMarkdownReport(result.report);
+
+    assert.match(markdown, /# Vibeclean PR Report/);
+    assert.match(markdown, /## Category Summary/);
+    assert.match(markdown, /\*\*Quality Gates:\*\*/);
+  });
+});
