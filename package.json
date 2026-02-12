@@ -4,7 +4,7 @@
   "description": "Audit your codebase for vibe coding mess. Detect inconsistencies, AI leftovers, and pattern chaos with one command.",
   "type": "module",
   "bin": {
-    "vibeclean": "./bin/vibeclean.js"
+    "vibeclean": "bin/vibeclean.js"
   },
   "files": [
     "bin/",
@@ -40,7 +40,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pithon/vibeclean"
+    "url": "git+https://github.com/piths/vibeclean.git"
   },
   "engines": {
     "node": ">=18.0.0"

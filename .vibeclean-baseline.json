@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-12T15:36:22.354Z",
-  "overallScore": 52,
-  "totalIssues": 59,
+  "generatedAt": "2026-02-12T15:55:48.023Z",
+  "overallScore": 75,
+  "totalIssues": 28,
   "findingCounts": {
     "low": 0,
-    "medium": 7,
-    "high": 4
+    "medium": 6,
+    "high": 2
   },
   "categories": {
     "naming": {
       "score": 2,
-      "totalIssues": 17,
+      "totalIssues": 16,
       "severity": "low"
     },
     "patterns": {
@@ -20,9 +20,9 @@
       "severity": "medium"
     },
     "leftovers": {
-      "score": 10,
-      "totalIssues": 27,
-      "severity": "high"
+      "score": 0,
+      "totalIssues": 1,
+      "severity": "low"
     },
     "dependencies": {
       "score": 0,
@@ -30,9 +30,9 @@
       "severity": "low"
     },
     "deadcode": {
-      "score": 9,
-      "totalIssues": 9,
-      "severity": "high"
+      "score": 5,
+      "totalIssues": 5,
+      "severity": "medium"
     },
     "errorhandling": {
       "score": 4,
