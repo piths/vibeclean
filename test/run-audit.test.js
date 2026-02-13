@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { writeBaselineSnapshot } from "../src/baseline.js";
+import { generateCiWorkflow } from "../src/ci-init.js";
 import { runAudit } from "../src/index.js";
 import { renderMarkdownReport } from "../src/markdown-report.js";
 
@@ -183,5 +184,54 @@ test("markdown report renderer outputs PR-friendly content", async () => {
     assert.match(markdown, /# Vibeclean PR Report/);
     assert.match(markdown, /## Category Summary/);
     assert.match(markdown, /\*\*Quality Gates:\*\*/);
+  });
+});
+
+test("runAudit includes security and tsquality findings", async () => {
+  await withTempProject(async (root) => {
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "src", "leak.ts"),
+      [
+        "export const awsKey = 'AKIA1234567890ABCDEF';",
+        "export function parse(input: any) {",
+        "  // @ts-ignore temporary",
+        "  return (input as any) as string;",
+        "}"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await runAudit(root, { version: "1.0.0" });
+    const security = result.report.categories.find((item) => item.id === "security");
+    const tsquality = result.report.categories.find((item) => item.id === "tsquality");
+
+    assert.ok(security);
+    assert.ok((security?.metrics?.highSeveritySignals || 0) >= 1);
+    assert.ok(tsquality);
+    assert.ok((tsquality?.metrics?.explicitAnyCount || 0) >= 1);
+    assert.ok((tsquality?.metrics?.suppressionCount || 0) >= 1);
+  });
+});
+
+test("generateCiWorkflow creates and reuses workflow file", async () => {
+  await withTempProject(async (root) => {
+    const first = await generateCiWorkflow(root, {
+      profile: "cli",
+      baselineFile: ".vibeclean-baseline.json",
+      failOn: "high"
+    });
+    assert.equal(first.created, true);
+
+    const second = await generateCiWorkflow(root, { profile: "cli" });
+    assert.equal(second.skipped, true);
+
+    const workflowContent = await fs.readFile(first.path, "utf8");
+    assert.match(workflowContent, /name: vibeclean/);
+    assert.match(workflowContent, /--profile cli/);
+    assert.match(workflowContent, /--baseline --baseline-file \.vibeclean-baseline\.json/);
+    assert.match(workflowContent, /GITHUB_STEP_SUMMARY/);
+    assert.match(workflowContent, /Comment on PR/);
+    assert.match(workflowContent, /vibeclean-report/);
   });
 });

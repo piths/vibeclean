@@ -26,9 +26,11 @@ const DEFAULT_CONFIG = {
     naming: true,
     patterns: true,
     leftovers: true,
+    security: true,
     dependencies: true,
     deadcode: true,
-    errorhandling: true
+    errorhandling: true,
+    tsquality: true
   },
   allowedPatterns: {
     httpClient: null,

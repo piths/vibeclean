@@ -5,9 +5,11 @@ import { loadConfig, mergeConfig } from "./config.js";
 import { analyzeNaming } from "./analyzers/naming.js";
 import { analyzePatterns } from "./analyzers/patterns.js";
 import { analyzeLeftovers } from "./analyzers/leftovers.js";
+import { analyzeSecurity } from "./analyzers/security.js";
 import { analyzeDependencies } from "./analyzers/dependencies.js";
 import { analyzeDeadCode } from "./analyzers/deadcode.js";
 import { analyzeErrorHandling } from "./analyzers/errorhandling.js";
+import { analyzeTsQuality } from "./analyzers/tsquality.js";
 import { generateRulesFiles } from "./rules-generator.js";
 import { parseAstWithMeta } from "./analyzers/utils.js";
 import { applySafeFixes } from "./fixers/safe-fixes.js";
@@ -218,6 +220,9 @@ export async function runAudit(targetDir, cliOptions = {}) {
   if (enabledRules.leftovers !== false) {
     categoryResults.push(analyzeLeftovers(scanResult.files, context));
   }
+  if (enabledRules.security !== false) {
+    categoryResults.push(analyzeSecurity(scanResult.files, context));
+  }
   if (enabledRules.dependencies !== false) {
     categoryResults.push(await analyzeDependencies(scanResult.files, context));
   }
@@ -226,6 +231,9 @@ export async function runAudit(targetDir, cliOptions = {}) {
   }
   if (enabledRules.errorhandling !== false) {
     categoryResults.push(analyzeErrorHandling(scanResult.files, context));
+  }
+  if (enabledRules.tsquality !== false) {
+    categoryResults.push(analyzeTsQuality(scanResult.files, context));
   }
 
   const filteredCategories = applySeverityFilter(categoryResults, config.severity || "low");

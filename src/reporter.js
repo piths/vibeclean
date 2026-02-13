@@ -93,6 +93,13 @@ function categoryDetailLines(category) {
         `└─ Estimated savings: ~${metrics.estimatedSavingsMb || 0}MB`
       ];
 
+    case "security":
+      return [
+        `├─ High severity signals: ${metrics.highSeveritySignals || 0}`,
+        `├─ Medium severity signals: ${metrics.mediumSeveritySignals || 0}`,
+        `└─ Files with signals: ${metrics.filesWithSignals || 0}`
+      ];
+
     case "deadcode":
       return [
         `├─ Orphan files: ${(metrics.orphanFiles || []).length}`,
@@ -105,6 +112,13 @@ function categoryDetailLines(category) {
         `├─ Functions with try/catch: ${metrics.handledRate || 0}%`,
         `├─ Empty catch blocks: ${metrics.emptyCatch || 0}`,
         `└─ Unhandled await signals: ${metrics.unhandledAwait || 0}`
+      ];
+
+    case "tsquality":
+      return [
+        `├─ TS files scanned: ${metrics.tsFileCount || 0}`,
+        `├─ explicit any: ${metrics.explicitAnyCount || 0}, suppressions: ${metrics.suppressionCount || 0}`,
+        `└─ Missing return types: ${metrics.missingReturnTypeCount || 0}`
       ];
 
     default:

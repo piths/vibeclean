@@ -32,9 +32,11 @@ npx vibeclean --changed --base main
 - 🔀 Pattern inconsistencies (multiple HTTP clients, mixed async styles, mixed imports)
 - 📝 Naming chaos (camelCase + snake_case + mixed file naming)
 - 🗑️ AI leftovers (TODO/FIXME, console logs, placeholders, localhost URLs)
+- 🔐 Security exposure (hardcoded keys/tokens, private keys, credential URLs)
 - 📦 Dependency bloat (unused packages, duplicate functionality, deprecated libs)
 - 💀 Dead code (orphan files, unused exports, stubs)
 - ⚠️ Error handling gaps (empty catches, unhandled async, mixed error patterns)
+- 🧠 TypeScript quality drift (explicit `any`, ts-ignore overuse, assertion style mix)
 
 ## Example Output
 
@@ -112,6 +114,10 @@ Options:
   --baseline              Compare against baseline file and detect regressions
   --baseline-file <path>  Baseline file path for compare/write (default: .vibeclean-baseline.json)
   --write-baseline        Write current report to baseline file
+  --watch                 Watch files and re-run audit on changes
+  --watch-interval <ms>   Polling interval fallback for --watch (default: 1200)
+  --ci-init               Generate a GitHub Actions workflow for vibeclean checks
+  --ci-force              Overwrite existing workflow when used with --ci-init
   --rules                 Generate .vibeclean-rules.md file
   --cursor                Also generate .cursorrules file
   --claude                Also generate CLAUDE.md file
@@ -179,6 +185,22 @@ vibeclean --report markdown
 vibeclean --report markdown --report-file vibeclean-report.md
 ```
 
+## Watch Mode
+
+```bash
+vibeclean --watch --profile cli
+```
+
+This re-runs the audit when files change using lightweight polling.
+
+## CI Workflow Bootstrap
+
+```bash
+vibeclean --ci-init --profile cli --baseline-file .vibeclean-baseline.json --min-score 70 --max-issues 35 --fail-on high
+```
+
+Generates `.github/workflows/vibeclean.yml` with a PR-ready baseline + gates command.
+
 ## Autofix Mode
 
 ```bash
@@ -215,9 +237,11 @@ Create `.vibecleanrc` or `.vibecleanrc.json` in project root:
     "naming": true,
     "patterns": true,
     "leftovers": true,
+    "security": true,
     "dependencies": true,
     "deadcode": true,
-    "errorhandling": true
+    "errorhandling": true,
+    "tsquality": true
   },
   "allowedPatterns": {
     "httpClient": "fetch",
