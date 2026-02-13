@@ -1,6 +1,6 @@
 {
   "name": "vibeclean",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Audit your codebase for vibe coding mess. Detect inconsistencies, AI leftovers, and pattern chaos with one command.",
   "type": "module",
   "bin": {
