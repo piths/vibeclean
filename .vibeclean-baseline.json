@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-12T15:55:48.023Z",
-  "overallScore": 75,
-  "totalIssues": 28,
+  "generatedAt": "2026-02-13T04:37:39.253Z",
+  "overallScore": 86,
+  "totalIssues": 31,
   "findingCounts": {
     "low": 0,
     "medium": 6,
-    "high": 2
+    "high": 3
   },
   "categories": {
     "naming": {
       "score": 2,
-      "totalIssues": 16,
+      "totalIssues": 20,
       "severity": "low"
     },
     "patterns": {
@@ -20,8 +20,18 @@
       "severity": "medium"
     },
     "leftovers": {
+      "score": 1,
+      "totalIssues": 2,
+      "severity": "low"
+    },
+    "security": {
       "score": 0,
-      "totalIssues": 1,
+      "totalIssues": 0,
+      "severity": "low"
+    },
+    "frameworks": {
+      "score": 0,
+      "totalIssues": 0,
       "severity": "low"
     },
     "dependencies": {
@@ -30,14 +40,19 @@
       "severity": "low"
     },
     "deadcode": {
-      "score": 5,
-      "totalIssues": 5,
-      "severity": "medium"
+      "score": 3,
+      "totalIssues": 3,
+      "severity": "low"
     },
     "errorhandling": {
-      "score": 4,
+      "score": 3,
       "totalIssues": 4,
-      "severity": "medium"
+      "severity": "low"
+    },
+    "tsquality": {
+      "score": 0,
+      "totalIssues": 0,
+      "severity": "low"
     }
   }
 }

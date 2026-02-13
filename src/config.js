@@ -27,6 +27,7 @@ const DEFAULT_CONFIG = {
     patterns: true,
     leftovers: true,
     security: true,
+    frameworks: true,
     dependencies: true,
     deadcode: true,
     errorhandling: true,

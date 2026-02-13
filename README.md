@@ -37,6 +37,7 @@ npx vibeclean --changed --base main
 - 💀 Dead code (orphan files, unused exports, stubs)
 - ⚠️ Error handling gaps (empty catches, unhandled async, mixed error patterns)
 - 🧠 TypeScript quality drift (explicit `any`, ts-ignore overuse, assertion style mix)
+- 🧱 Framework anti-patterns (React/Next.js/Express hotspots)
 
 ## Example Output
 
@@ -238,6 +239,7 @@ Create `.vibecleanrc` or `.vibecleanrc.json` in project root:
     "patterns": true,
     "leftovers": true,
     "security": true,
+    "frameworks": true,
     "dependencies": true,
     "deadcode": true,
     "errorhandling": true,

@@ -235,3 +235,67 @@ test("generateCiWorkflow creates and reuses workflow file", async () => {
     assert.match(workflowContent, /vibeclean-report/);
   });
 });
+
+test("runAudit detects framework-specific anti-patterns", async () => {
+  await withTempProject(async (root) => {
+    await fs.mkdir(path.join(root, "app"), { recursive: true });
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+
+    await fs.writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify(
+        {
+          name: "framework-test",
+          version: "0.0.0",
+          dependencies: {
+            react: "^18.0.0",
+            next: "^14.0.0",
+            express: "^4.0.0",
+            cors: "^2.8.5"
+          }
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    await fs.writeFile(
+      path.join(root, "app", "page.jsx"),
+      [
+        "import { useEffect } from 'react';",
+        "import { useRouter } from 'next/router';",
+        "export default function Page({ html, items }) {",
+        "  useEffect(async () => { return; }, []);",
+        "  return <div dangerouslySetInnerHTML={{ __html: html }}>{items.map((item, index) => <span key={index}>{item}</span>)}</div>;",
+        "}"
+      ].join("\n"),
+      "utf8"
+    );
+
+    await fs.writeFile(
+      path.join(root, "src", "server.js"),
+      [
+        "import express from 'express';",
+        "import cors from 'cors';",
+        "import fs from 'node:fs';",
+        "const app = express();",
+        "app.use(cors());",
+        "app.get('/x', (req, res) => {",
+        "  const text = fs.readFileSync('./data.txt', 'utf8');",
+        "  const err = new Error(text);",
+        "  return res.send(err);",
+        "});"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = await runAudit(root, { version: "1.0.0" });
+    const frameworks = result.report.categories.find((item) => item.id === "frameworks");
+    assert.ok(frameworks);
+    assert.ok((frameworks?.findings?.length || 0) >= 3);
+    assert.ok((frameworks?.metrics?.detectedFrameworks || []).includes("react"));
+    assert.ok((frameworks?.metrics?.detectedFrameworks || []).includes("next"));
+    assert.ok((frameworks?.metrics?.detectedFrameworks || []).includes("express"));
+  });
+});

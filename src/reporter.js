@@ -100,6 +100,17 @@ function categoryDetailLines(category) {
         `└─ Files with signals: ${metrics.filesWithSignals || 0}`
       ];
 
+    case "frameworks": {
+      const frameworks = Array.isArray(metrics.detectedFrameworks)
+        ? metrics.detectedFrameworks.join(", ")
+        : "";
+      return [
+        `├─ Frameworks detected: ${frameworks || "none"}`,
+        `├─ React/Next signals: ${(metrics.reactDangerousHtmlCount || 0) + (metrics.reactAsyncUseEffectCount || 0) + (metrics.reactIndexKeyCount || 0) + (metrics.nextLegacyDataCount || 0) + (metrics.nextRouterInAppDirCount || 0)}`,
+        `└─ Express signals: ${(metrics.expressWildcardCorsCount || 0) + (metrics.expressErrorLeakCount || 0) + (metrics.expressSyncFsInRouteCount || 0)}`
+      ];
+    }
+
     case "deadcode":
       return [
         `├─ Orphan files: ${(metrics.orphanFiles || []).length}`,

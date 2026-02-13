@@ -6,6 +6,7 @@ import { analyzeNaming } from "./analyzers/naming.js";
 import { analyzePatterns } from "./analyzers/patterns.js";
 import { analyzeLeftovers } from "./analyzers/leftovers.js";
 import { analyzeSecurity } from "./analyzers/security.js";
+import { analyzeFrameworks } from "./analyzers/frameworks.js";
 import { analyzeDependencies } from "./analyzers/dependencies.js";
 import { analyzeDeadCode } from "./analyzers/deadcode.js";
 import { analyzeErrorHandling } from "./analyzers/errorhandling.js";
@@ -222,6 +223,9 @@ export async function runAudit(targetDir, cliOptions = {}) {
   }
   if (enabledRules.security !== false) {
     categoryResults.push(analyzeSecurity(scanResult.files, context));
+  }
+  if (enabledRules.frameworks !== false) {
+    categoryResults.push(analyzeFrameworks(scanResult.files, context));
   }
   if (enabledRules.dependencies !== false) {
     categoryResults.push(await analyzeDependencies(scanResult.files, context));
