@@ -1,12 +1,17 @@
-# 🧹 vibeclean
+<p align="center">
+  <img src="assets/vibeclean-logo-transparent.png" alt="vibeclean logo" width="280">
+</p>
 
-Audit your codebase for the mess vibe coding left behind.
+<h1 align="center">vibeclean</h1>
 
-AI assistants write great code. They just write it differently every time. `vibeclean` finds the inconsistencies.
+<p align="center">
+  Audit your codebase for the mess vibe coding left behind.
+</p>
 
-Terminal screenshot/GIF:
-- Add `assets/vibeclean-demo.gif` (recommended for Vibeathon voting)
-- Keep it short (3-8s) and show `npx vibeclean` + score + `--rules` output
+<p align="center">
+  AI assistants write great code. They just write it differently every time.<br>
+  <strong>vibeclean</strong> finds the inconsistencies.
+</p>
 
 ## Quick Start
 
